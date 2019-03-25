@@ -1,12 +1,6 @@
----
-title: "Tentando essa marmota"
-author: "João Mendes"
-date: "15 de novembro de 2018"
-output: pdf_document
----
 
-Pacotes necessários
-```{r}
+# Pacotes necessários
+
 library(foreign)
 library(car)
 library(mirt)
@@ -19,24 +13,19 @@ library(rpart)
 library(rpart.plot)
 library(xgboost)
 library(nnet)
-```
 
-Leitura dos dados
-```{r}
+# Leitura dos dados
+# os dados foram retirados de http://www.cis.org.br/
+
 dados = read.spss("BD_CIS0426.sav", to.data.frame = T)
-```
 
-
-```{r}
-#As variáveis relacionados com medo sao essas 7:41 e 53
+# As variáveis relacionados com medo sao essas 7:41 e 53
 var_modelo = c(3:4, 6:41, 43, 45, 47, 49, 51, 52, 53:57, 70:85)
 
-#Vetor com os indices das variaveis que vao entrar (Medos, covariaveis e respostas)
+# Vetor com os indices das variaveis que vao entrar (Medos, covariaveis e respostas)
 cov = c(3:4, 43, 45, 47, 49, 51, 52, 54:57, 70:85)
-```
 
-Recodificação das variáveis
-```{r}
+# Recodificação das variaveis
 dados[, var_modelo] = apply(dados[, var_modelo], 2, function(x) recode(x,
                               list("'Nenhum medo' = 0;
                               'Um pouco de medo' = 1;
@@ -149,76 +138,67 @@ dados[, var_modelo] = apply(dados[, var_modelo], 2, function(x) recode(x,
                               'Nunca fumou' = 0;
                               'Sim, costuma' = 1")))
 
+# Separando os medos das outras variáveis
 
-```
-
-
-Separando os medos das outras variáveis
-```{r}
-#Possui TODOS os medos, ate os dicotomicos e sequenciais
+# Possui TODOS os medos, ate os dicotomicos e sequenciais
 medo = dados[, c(7:41, 53)]
 
-#Apenas diconomicos
+# Apenas diconomicos
 dicotomicos = dados[, c(37:41, 53)]
-#Mudando o tipo das variáveis
+
+# Mudando o tipo das variaveis
 dicotomicos = as.data.frame(apply(dicotomicos, 2,  function(x) as.integer(x)))
 
-#Apenas os politomicos sequenciais
+# Apenas os politomicos sequenciais
 politomicos = dados[, 7:36]
-#Mudando o tipo das variáveis
+
+# Mudando o tipo das variaveis
 politomicos = as.data.frame(apply(politomicos, 2,  function(x) as.integer(x)))
 
-#Juntando na ordem
+# Juntando na ordem dicotomicos e politomicos
 ordenado = cbind(dicotomicos, politomicos)
-```
 
-Modelo de 1 dimensão: estimação dos traços latentes
-```{r}
+# Modelo de 1 dimensao: estimacao dos tracos latentes
 
-#Usando o modelo dicotômico 2ML e o modelo de crédito parcial generalizado para os dados politômicos
+# Usando o modelo dicotômico 2ML e o modelo de crédito parcial generalizado para os dados politômicos
 misto = mirt(ordenado, 1, rep(c("2PL", "gpcmIRT"), times = c(6, 30)), SE = TRUE)
 
-# Gráfico de probabilidade de acerto do item de acordo com o traço latente para medo de assombração
+# Grafico de probabilidade de acerto do item de acordo com o traco latente para medo de assombracao
 grafico_assombracao = itemplot(misto, item = 20, main = "Linhas de traço para o medo de assombração")
 plot(grafico_assombracao, type = 'trace')
 
-# Gráfico informação do teste
+# Grafico informacao do teste
 plot(misto, type = 'info', theta_lim = c(-4,4), lwd=2, main = 'Informação do questionário') 
 plot(misto, type = 'SE', theta_lim = c(-4,4), lwd=2, main = 'Erro padrão do questionário') 
-tracos = fscores(misto)
-``` 
+tracos = fscores(misto) 
 
-Fazendo um banco apenas com as covariáveis + traços latentes 
-```{r}
+# Fazendo um banco apenas com as covariaveis + tracos latentes 
 covariaveis = dados[, cov]
-
 rep = list('3' = '2', '4' = '2', '5' = '2', '6' = '2')
  
-#Recodificação das variáveis                                                                      
+# Recodificacao das variaveis                                                                      
 covariaveis[, 14:24] = as.data.frame(apply(covariaveis[, 14:24], 2,  function(x) recode(x, list("'3' = '2'; '4' = '2'; '5' = '2'; '6' = '2'"))))
 
-#Mudando o tipo das variáveis
+# Mudando o tipo das variaveis
 covariaveis[, 1:28] = as.data.frame(apply(covariaveis[, 1:28], 2,  function(x) as.factor(x)))
 
-#Colocando os traços no mesmo banco
+# Colocando os tracos no mesmo banco
 covariaveis$tracos = as.numeric(tracos)
 
-#Retirando os valores NA
+# Retirando os valores NA
 covariaveis = na.omit(covariaveis)
-```
 
-Dividindo o banco em treino e teste 
-```{r}
+# Dividindo o banco em treino e teste 
+
 set.seed(123)
-id = sample(1:dim(covariaveis)[1],
-            as.integer(0.7*dim(covariaveis[1])),
-            replace = F)
+
+id = sample(1:dim(covariaveis)[1], as.integer(0.7*dim(covariaveis[1])), replace = F)
+            
 treino = covariaveis[id,]
 teste = covariaveis[-id,]
-```
 
-Separando em variáveis respostas e preditoras
-```{r}
+# Separando em variaveis respostas e preditoras
+
 resp_sexo = sexo ~ idade + P7 + P9 + P10 + P12 + P14 + P15 + P17 + pea + P19 + P20a +
   religiao + tvcor + carro + radio + empreg + aspira + maqlav + videodvd + banhe +
   gelad + freezer + comp + escola + escolac + rendaf + cor + tracos
@@ -230,63 +210,44 @@ resp_cor = cor ~ idade + P7 + P9 + P10 + P12 + P14 + P15 + P17 + pea + P19 + P20
 resp_rendaf = rendaf ~ idade + P7 + P9 + P10 + P12 + P14 + P15 + P17 + pea + P19 + P20a +
   religiao + tvcor + carro + radio + empreg + aspira + maqlav + videodvd + banhe +
   gelad + freezer + comp + escola + escolac + sexo + cor + tracos
-```
 
+# ARVORE DE REGRESSAO:
 
-ÁRVORE DE REGRESSÃO:
-
-SEXO
-```{r}
+# SEXO
 set.seed(123)
 modelo_rpart_sexo = rpart(resp_sexo, data = treino, cp = 0.02, method = "class")
-
 par(xpd = NA)
 rpart.plot(modelo_rpart_sexo)
-
 predicao_rpart_sexo = predict(modelo_rpart_sexo, teste, type = "class")
-
 cm_rpart_sexo = confusionMatrix(predicao_rpart_sexo, teste$sexo)
-```
 
-COR
-```{r}
+# ETNIA
 set.seed(123)
 modelo_rpart_cor = rpart(resp_cor, data = treino, cp = 0.015, method = "class")
-
 predicao_rpart_cor = predict(modelo_rpart_cor, teste, type = "class")
-
 cm_rpart_cor = confusionMatrix(predicao_rpart_cor, teste$cor)
-
 par(xpd = NA)
 rpart.plot(modelo_rpart_cor)
-```
 
-RENDA
-```{r}
+# RENDA
 modelo_rpart_rendaf = rpart(resp_rendaf, data = treino, cp = 0.015, method = "class")
-
 predicao_rpart_rendaf = predict(modelo_rpart_rendaf, teste, type = "class")
-
 cm_rpart_rendaf = confusionMatrix(predicao_rpart_rendaf, teste$rendaf)
-
 par(xpd = NA)
 rpart.plot(modelo_rpart_rendaf)
 
-# Olhando a matriz de confusão, os erros geralmente são para classes próximas
-```
+# Olhando a matriz de confusao, os erros geralmente sao para classes proximas
 
-FLORESTA ALEATÓRIA 
+# FLORESTA ALEATORIA 
 
-SEXO - BOOSTING 
-```{r}
+# SEXO - BOOSTING 
 set.seed(123)
-
 boost_sexo <- train(resp_sexo,
                     data = treino,
                     method = "xgbTree",
                     trControl = trainControl("cv", number = 10))
 
-#traço foi a variável mais importante
+# traco latente foi a variavel mais importante
 varImp(boost_sexo)  
 
 rf.grid = train(resp_sexo,
@@ -300,12 +261,9 @@ mean(predict_boost_sexo == teste$sexo)
 
 predict_rf_sexo = predict(rf.grid, teste)
 mean(predict_rf_sexo == teste$sexo)
-```
 
-COR - RF (boosting demorou muito para rodar)
-```{r}
+# COR - RF (boosting demorou muito para rodar)
 set.seed(123)
-
 rf_cor <- train(resp_cor,
                 data = treino,
                 method = "rf",
@@ -316,16 +274,14 @@ varImpPlot(rf_cor$finalModel,
 
 predict_rf_cor = predict(rf_cor, teste)
 mean(predict_rf_cor == teste$cor)
-```
 
-RENDA - RF (boosting demorou muito para rodar)
-```{r}
+# RENDA - RF (boosting demorou muito para rodar)
 set.seed(123)
 
-#boost_cor <- train(resp_rendaf, data = treino, method = "xgbTree", trControl = trainControl("cv", number = 10))
+# boost_cor <- train(resp_rendaf, data = treino, method = "xgbTree", trControl = trainControl("cv", number = 10))
 
-#rf_cor <- train(resp_rendaf, data = treino, method = "rf", trControl = trainControl("cv", number = 10), importance = TRUE)
-#varImpPlot(rf_cor$finalModel, main = "Importância das variáveis")
+# rf_cor <- train(resp_rendaf, data = treino, method = "rf", trControl = trainControl("cv", number = 10), importance = TRUE)
+# varImpPlot(rf_cor$finalModel, main = "Importância das variáveis")
 
 rf_rendaf = train(resp_rendaf,
                   data = treino,
@@ -336,13 +292,10 @@ varImp(rf.grid)
 
 predict_rf_renda = predict(rf_rendaf, teste)
 mean(predict_rf_renda == teste$rendaf)
-```
 
+# SVM - LINEAR
 
-SVM - LINEAR
-
-SEXO
-```{r}
+# SEXO
 set.seed(123)
 modelo_svm_sexo = train(resp_sexo,
                         data = treino,
@@ -351,10 +304,7 @@ modelo_svm_sexo = train(resp_sexo,
 predict_svm_sexo = predict(modelo_svm_sexo, teste)
 mean(predict_svm_sexo == teste$sexo)
 
-```
-
-COR
-```{r}
+# COR
 set.seed(123)
 modelo_svm_cor = train(resp_cor,
                        data = treino,
@@ -363,11 +313,9 @@ modelo_svm_cor = train(resp_cor,
 predict_svm_cor = predict(modelo_svm_cor, teste)
 mean(predict_svm_cor == teste$cor)
 
-#Linear pra radial não é muita diferença, não vale a pena
-```
+# Linear pra radial nao e muita diferenca nesse caso
 
-RENDA
-```{r}
+# RENDA
 set.seed(123)
 modelo_svm_rendaf = train(resp_rendaf,
                           data = treino,
@@ -376,18 +324,16 @@ modelo_svm_rendaf = train(resp_rendaf,
 predict_svm_rendaf = predict(modelo_svm_rendaf, teste)
 mean(predict_svm_rendaf == teste$rendaf)
 
-#Radial deu uma predição muito ruim 
-```
+# Radial nao deu uma boa predicao 
 
-REGRESSÃO LOGÍSTICA
+# REGRESSÃO LOGÍSTICA
 
-SEXO
-```{r}
+# SEXO
 set.seed(123)
 logistica = glm(resp_sexo,
                 data = treino,
                 family = binomial)
-#coef(logistica)
+# coef(logistica)
 summary(logistica)
 predict_logistica = predict(logistica,
                             teste,
@@ -395,27 +341,22 @@ predict_logistica = predict(logistica,
 predicted_logistica = ifelse(predict_logistica > 0.5, 1, 0)
 
 mean(predicted_logistica == teste$sexo)
+# Suposicoes que nao foram verificadas
 
-# Falar das suposições que não foram verificadas
-```
-
-COR - ACURÁCIA MUITO BAIXA
-```{r}
+# COR - ACURACIA MUITO BAIXA
 logistica = multinom(resp_cor,
                      data = treino)
-#coef(logistica)
+# coef(logistica)
 summary(logistica)
 predict_logistica = predict(logistica, teste)
 
 mean(predicted_logistica == teste$cor)
-```
- 
-```{r}
+
 acuracias = data.frame(arvore = c(0.59, 0.50, 0.39),
                        floresta = c(0.63, 0.52, 0.4),
                        svm = c(0.62, 0.45, 0.41),
                        boosting = c(0.65, 0, 0))
-```
+
  
 
 
